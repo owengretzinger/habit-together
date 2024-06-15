@@ -1,10 +1,9 @@
+import { collection, doc, getDocs, query, where } from "firebase/firestore";
+import { habitInfoT } from "../lib/db_types";
 import { fetchSingleUserThumbnail } from "../lib/getRandomProfilePics";
-import {
-  getAllHabitData,
-  getMockFriends,
-  getMockNotifications,
-} from "../lib/mockData";
+import { getMockFriends, getMockNotifications } from "../lib/mockData";
 import { Habit, HabitCompletion } from "../lib/types";
+import { auth, firestore } from "./config";
 
 export async function fetchHabits() {
   // fetch all habit data from firebase
@@ -28,7 +27,26 @@ export async function fetchHabits() {
   //   2: ...
   // }
 
-  return getAllHabitData();
+  //fetch habits related to user
+  if (!auth.currentUser) {
+    console.log("No user logged in");
+    return {};
+  }
+
+  const userDocRef = doc(firestore, "users", auth.currentUser.uid);
+
+  const q = query(
+    collection(firestore, "habits"),
+    where("participants", "array-contains", userDocRef),
+  );
+  let result: habitInfoT[] = [];
+  const docs = await getDocs(q);
+  docs.forEach((doc) => {
+    result.push(doc.data() as habitInfoT);
+  });
+  console.log("fetchHabits");
+  console.log(result);
+  return result;
 }
 
 export async function updateHabitInfoInDB(habitId: number, habitInfo: Habit) {
